@@ -90,7 +90,7 @@ exports.deletePlayer = functions.https.onRequest((req, res) => {
 
 
 
-  exports.bidMaker = functions.firestore
+  exports.bidCreator = functions.firestore
     .document("ghostPool/{chatId}")
     .onUpdate(change => {
       const data = change.after.data();
@@ -105,12 +105,20 @@ exports.deletePlayer = functions.https.onRequest((req, res) => {
      
         if(ghostSize >= 4){
           var dataObj = data.bidders.splice(0, 4);
+         db.collection("TodayFixtures").doc("v4capW6PJh2qlY4MOJJX").get().then((fixtureDetails)=> {
+           console.log("fixtureDetials", fixtureDetails.data());
+         
+          // console.log("fixtureDetails", fixtureDetails.data());
           var obj = {
             "bidId": "001",
             "bidStatus": "booted",
             "SkippedPlayers": "check",
             "bidders": dataObj,
-            "activeBidders": dataObj
+            "bidPrice": 0,
+            "activeBidders": dataObj,
+            "currentBidder": dataObj[0],
+            "team": fixtureDetails.data().team,
+            "sportPlyerId": 0
           }
           const batch = db.batch();
             db.collection("smartPool").doc(change.after.id).set(obj);
@@ -120,6 +128,9 @@ exports.deletePlayer = functions.https.onRequest((req, res) => {
           batch.set(ref, data, { merge: true });
   
          return batch.commit();
+        }).catch(e => {
+          console.log(e);
+        })
         }else{
           return null;
         }
@@ -156,17 +167,17 @@ exports.deletePlayer = functions.https.onRequest((req, res) => {
     
 // this function triggers when a new doc is added to smartPool
 // active data is set to first player in the array of activeBidders
-// trigger an setInterval to 15sec per bidder
+// Todo:trigger an setInterval to 15sec per bidder(change value of max_waiting)
 // implement skip option trigger by observing the activeBidders Array
 // when the activeBidder is empty allocate the actionItem
 
 
   exports.smartGamer = functions.firestore
     .document("smartPool/{chatId}")
-    .onUpdate(change => {
-      const data = change.after.data();
+    .onCreate((snap, context) => {
+      const data = snap.data();
       const ghostSize = data.bidders.length;
-      const MAX_WAITING = 5000;
+      const MAX_WAITING = 10000;
       const index = 0;
 
       // /let currentBidder = data.activeBidders[index];
@@ -174,74 +185,51 @@ exports.deletePlayer = functions.https.onRequest((req, res) => {
       let _turn = 0;
       let timeOut,initialWaitTimeOut;
       let players = data.bidders;
+      let playit = 0;
 
       console.log("bidder are", players, data.bidders);
 
 
-      // *** this should be removed
-    //  db.collection("smartPool").doc(change.after.id+"/activeBidders").set({"turn": 10});
-      
-      // get executed only once just to give breath time before the start
-      // initialWaitTimeOut = setTimeout(()=> {
-      //     next_turn();
-      // },MAX_WAITING)();
-
-      // initialWaitTimeOut = setTimeout(next_turn, MAX_WAITING)();
-
-      // const delay = t => new Promise(resolve => setTimeout(resolve, t));
-
-      // /delay(5000).then(() => {return x= next_turn()}).catch(e => { console.log("error is", e)});
-      db.collection("ghostPool").doc(change.after.id).set({currentBidder: players[0]}, {merge: true});
+    //   db.collection("ghostPool1").doc(change.after.id).set({currentBidder: players[0], playit: true});
       next_turn();
-   
+
       function next_turn(){
-        return new Promise((resolve, reject) => {
-          setTimeout(function(){
-            _turn = current_turn++ % players.length;
-            console.log("next turn triggered " , _turn);
+        if(players <5){
+            return new Promise((resolve, reject)=> {
+              _turn = current_turn++ % players.length;
+              playit = playit +1;
       // update in db as active bidder
-     return  db.collection("ghostPool").doc(change.after.id).set({currentBidder: players[1]}, {merge: true}).then((data)=>{
-      return  resolve();
-     }).catch(e=> {
-       console.log("eerir is ", e);
-     })
-      // players[_turn].emit('your_turn');
-          },MAX_WAITING);
-        });
+      db.collection("smartPool").doc(context.params.chatId).set({currentBidder: players[_turn]}, {merge: true});
+      console.log("next turn triggered " , _turn, playit);
+      triggerTimeout();
+      return resolve(); 
+            });
+          }else{
+            return resolve
+          }
       }
 
-    //   next_turn();
+      functions.firestore.document("smartPool/{chatId}/activeBidders").onDelete((snap, context)=> {
+        const deletedValue =snap.data()
+        console.log("checkin for deleted value in this", snap.data());
 
+        // if the activeBidders value is empty then mark the player as sold and allocate him to bidder
 
-
-
-      //   if(players.length > 0){
-      // _turn = current_turn++ % players.length;
-      // // update in db as active bidder
-      // db.collection("ghostPool").doc(change.after.id).set({currentBidder: players[0]}, {merge: true});
-      // // players[_turn].emit('your_turn');
-      // console.log("next turn triggered " , _turn);
-      // triggerTimeout();
-      //   }
-      //   else {
-      //     return "completed.....!";
-      //   }
-   //}
+        // update the players icon
+        
+      });
 
    function triggerTimeout(){
-    //  timeOut = setTimeout(()=>{
-    //    next_turn();
-    //  },MAX_WAITING);
-
-    console.log("oinside timerout");
-
-
-
-    //  timeOut = setTimeout(next_turn, MAX_WAITING)
-
-     delay(5000).then(() => next_turn()).catch(e => { console.log("error is", e)});
-
-   }
+    return new Promise((resolve, reject) => {
+      setTimeout(function(){
+       return  next_turn().then(data=> {
+          return resolve();
+        }).catch(e=> {
+          console.log("error at triggerTimeOut",e);
+        });
+      },MAX_WAITING);
+   })
+  }
 
    function resetTimeOut(){
       if(typeof timeOut === 'object'){
