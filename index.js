@@ -23,9 +23,114 @@ admin.initializeApp({
 
 const database = admin.database().ref('/playersDirectory');
 
+
+
 exports.helloWorld1 = functions.https.onRequest((request, response) => {
   response.send("Hello from a Severless Database!");
 });
+
+
+exports.timerTest = functions.https.onRequest((request, response) => {
+  function countDown(i) {
+    return promise = new Promise( (resolve, reject) => {
+  
+      console.log(i--);
+  
+      if (i > 0) {
+        setTimeout( () => {
+          countDown(i).then(resolve).catch(e=> {
+            console.log('counter val',e);
+            return reject (e);
+          })
+        }, 2000);
+      } else {
+        resolve('counter finished:');
+      }
+  
+    });
+  
+  }
+  // functions.firestore.document("smartPool/Ind_SrlPool/activeBidders").onWrite((snap, context)=> {
+  //   // const deletedValue =snap.data()
+  //   console.log("checkin for deleted value in this");
+
+  // checck=   functions.firestore
+  //    .document('todos/{userId}')
+  //    .onWrite((snap, context) => {
+  //      // Get an object representing the document
+  //      // e.g. {'name': 'Marie', 'age': 66}
+  //      const newValue = snap.data();
+  //     console.log("new called from inside ", newValue);
+  //      // access a particular field as you would any JS property
+  //      const name = newValue.name;
+      
+  //      return name;
+  //      // perform desired operations ...
+  //    });
+
+  //   // if the activeBidders value is empty then mark the player as sold and allocate him to bidder
+
+  //   // update the players icon
+    
+  // });
+
+  // Attach an asynchronous callback to read the data at our posts reference
+  var ref = admin.database().ref("todos");
+ref.on("value", function(snapshot) {
+  console.log("value change log");
+  console.log(snapshot.val());
+  return snapshot;
+}, function (errorObject) {
+  console.log("The read failed: " + errorObject.code
+
+// ref.transaction(val=> {
+//   console.log("value transaction");
+//   reuturn (val);
+// })
+  var starCountRef = admin.database().ref("todos");
+starCountRef.on('child_changed', function(snapshot) {
+  console.log("valus is changed bro");
+  return snapshot;
+  // updateStarCount(postElement, snapshot.val());
+});
+
+  let counter = countDown(10);
+  counter.then( (msg) => {
+    console.log(msg);
+    if(msg === 'counter finished:'){
+    return response.send(msg);}
+    else{
+      return "continue";
+    }
+  }).catch(e => {
+          
+    console.log(e);
+    return reject(e);
+  });
+
+  // return response.send(counter);
+});
+
+exports.changeDetect = functions.firestore
+    .document("smartPool/{chartId}/activeBidders")
+    .onWrite((snap, context) => {
+      console.log("change Detecotr");
+     });
+
+     exports.changeUser = functions.firestore
+     .document('todos/{userId}')
+     .onWrite((snap, context) => {
+       // Get an object representing the document
+       // e.g. {'name': 'Marie', 'age': 66}
+       const newValue = snap.data();
+      console.log("new value is ", newValue);
+       // access a particular field as you would any JS property
+       const name = newValue.name;
+      
+       return name;
+       // perform desired operations ...
+     });    
+
 
 const getItemsFromDatabase = (res) => {
   let items = [];
@@ -162,7 +267,7 @@ exports.deletePlayer = functions.https.onRequest((req, res) => {
       // }
     });
 
-     
+    
     
     
 // this function triggers when a new doc is added to smartPool
